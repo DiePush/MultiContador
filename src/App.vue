@@ -25,7 +25,7 @@ export default {
 }
 
 .logo {
-  width: 50%; /* Ajusta este valor para cambiar el tamaño del logo */
+  width: 30%; /* Ajusta este valor para cambiar el tamaño del logo */
   height: auto; /* Mantén la proporción */
   margin-bottom: -50px; /* Espaciado debajo del logo */
 }

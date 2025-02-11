@@ -5,7 +5,7 @@
         <button @click="mostrarModal = true" :disabled="contadores.length >= 12">
           Agregar Contador
         </button>
-        <button @click="exportarExcel" :disabled="historial.length === 0">
+        <button @click="mostrarModalExportar = true" :disabled="historial.length === 0">
           Exportar a Excel
         </button>
         <button @click="adelantarTiempo" :disabled="contadores.length === 0">
@@ -29,7 +29,6 @@
             <button @click="incrementarCategoria(contador.id, 'autobuses')">Autobuses ({{ contador.autobuses }})</button>
           </div>
           <button @click="eliminarContador(contador.id)" class="eliminar">Eliminar</button>
-          <button @click="editarNombre(contador.id)">Editar Nombre</button>
         </div>
       </div>
   
@@ -42,6 +41,18 @@
           <div class="modal-buttons">
             <button @click="confirmarNombre">Aceptar</button>
             <button @click="cerrarModal">Cancelar</button>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Modal para ingresar el nombre del archivo Excel -->
+      <div v-if="mostrarModalExportar" class="modal-overlay">
+        <div class="modal">
+          <h2>Exportar a Excel</h2>
+          <input v-model="nombreArchivo" type="text" placeholder="Ingrese el nombre del archivo" />
+          <div class="modal-buttons">
+            <button @click="exportarExcel">Exportar</button>
+            <button @click="cerrarModalExportar">Cancelar</button>
           </div>
         </div>
       </div>
@@ -59,7 +70,9 @@
         siguienteId: JSON.parse(localStorage.getItem('siguienteId')) || 1,
         intervalos: {},
         mostrarModal: false,
+        mostrarModalExportar: false,
         nuevoNombre: "",
+        nombreArchivo: "",
         errorMensaje: "",
         cuentaRegresivaActiva: false,
         temporizadorGlobal: null,
@@ -87,6 +100,10 @@
         this.nuevoNombre = "";
         this.errorMensaje = "";
         this.mostrarModal = false;
+      },
+      cerrarModalExportar() {
+        this.nombreArchivo = "";
+        this.mostrarModalExportar = false;
       },
       agregarContador(nombre) {
         if (this.contadores.length < 12) {
@@ -119,31 +136,37 @@
           this.contadores.splice(index, 1);
           this.guardarDatos();
         }
+  
+        // Si ya no hay contadores, detener el temporizador global y reiniciar el tiempo
+        if (this.contadores.length === 0) {
+          this.detenerTemporizadorGlobal();
+          this.tiempoGlobalRestante = 900; // 15 minutos
+        }
       },
       iniciarCuentaRegresiva() {
-    if (this.temporizadorGlobal) clearInterval(this.temporizadorGlobal);
-
-    this.cuentaRegresivaActiva = true;
-    this.temporizadorGlobal = setInterval(() => {
-        if (this.tiempoGlobalRestante > 0) {
+        if (this.temporizadorGlobal) clearInterval(this.temporizadorGlobal);
+  
+        this.cuentaRegresivaActiva = true;
+        this.temporizadorGlobal = setInterval(() => {
+          if (this.tiempoGlobalRestante > 0) {
             this.tiempoGlobalRestante--;
             this.contadores.forEach(contador => {
-                if (contador.tiempoRestante > 0) {
-                    contador.tiempoRestante--;
-                }
+              if (contador.tiempoRestante > 0) {
+                contador.tiempoRestante--;
+              }
             });
-        } else {
+          } else {
             // Guardar los datos en el historial antes de reiniciar los contadores
             this.contadores.forEach(contador => {
-                this.guardarEnHistorial(contador.id, contador.intervalo);
+              this.guardarEnHistorial(contador.id);
             });
-
+  
             // Reiniciar el tiempo global y los contadores
             this.reiniciarCuentaRegresiva();
-        }
-        this.guardarDatos();
-    }, 1000);
-},
+          }
+          this.guardarDatos();
+        }, 1000);
+      },
       reiniciarCuentaRegresiva() {
         this.tiempoGlobalRestante = 900;
         this.contadores.forEach(contador => {
@@ -154,6 +177,10 @@
         });
         this.iniciarCuentaRegresiva();
       },
+      detenerTemporizadorGlobal() {
+        clearInterval(this.temporizadorGlobal);
+        this.cuentaRegresivaActiva = false;
+      },
       adelantarTiempo() {
         this.tiempoGlobalRestante = 5;
         this.contadores.forEach(contador => {
@@ -161,24 +188,14 @@
         });
         this.guardarDatos();
       },
-      editarNombre(id) {
-        const nuevoNombre = prompt("Ingrese el nuevo nombre del contador:");
-        if (nuevoNombre && nuevoNombre.trim()) {
-          const index = this.contadores.findIndex(c => c.id === id);
-          if (index !== -1) {
-            this.contadores[index].nombre = nuevoNombre.trim();
-            this.guardarDatos();
-          }
-        }
-      },
       guardarEnHistorial(id) {
-    const contador = this.contadores.find(c => c.id === id);
-    if (contador) {
-        const ahora = new Date(); // Hora actual
-        const finIntervalo = new Date(ahora.getTime() + (900 - this.tiempoGlobalRestante) * 1000);
-        const inicioIntervalo = ahora;
-
-        this.historial.push({
+        const contador = this.contadores.find(c => c.id === id);
+        if (contador) {
+          const ahora = new Date(); // Hora actual
+          const finIntervalo = new Date(ahora.getTime() + (900 - this.tiempoGlobalRestante) * 1000);
+          const inicioIntervalo = ahora;
+  
+          this.historial.push({
             "Intervalo": `${this.formatHour(inicioIntervalo)} - ${this.formatHour(finIntervalo)}`,
             "Nombre del contador": contador.nombre,
             "Livianos": contador.livianos,
@@ -186,19 +203,18 @@
             "Autobuses": contador.autobuses,
             "Total": contador.livianos + contador.pesados + contador.autobuses,
             "Hora de Registro": ahora.toLocaleTimeString()
-        });
-
-        // Guardar en localStorage
-        localStorage.setItem('historial', JSON.stringify(this.historial));
-
-        // Reiniciar contadores
-        contador.livianos = 0;
-        contador.pesados = 0;
-        contador.autobuses = 0;
-        contador.tiempoRestante = 900; // Reiniciar tiempo a 15 minutos
-    }
-}
-,
+          });
+  
+          // Guardar en localStorage
+          localStorage.setItem('historial', JSON.stringify(this.historial));
+  
+          // Reiniciar contadores
+          contador.livianos = 0;
+          contador.pesados = 0;
+          contador.autobuses = 0;
+          contador.tiempoRestante = 900; // Reiniciar tiempo a 15 minutos
+        }
+      },
       exportarExcel() {
         if (this.historial.length === 0) return;
   
@@ -210,7 +226,9 @@
         });
   
         const fecha = new Date().toISOString().replace(/[-T:]/g, '').split('.')[0];
-        XLSX.writeFile(libro, `historial_contadores_${fecha}.xlsx`);
+        const nombreArchivoFinal = this.nombreArchivo.trim() ? this.nombreArchivo.trim() : `historial_contadores_${fecha}`;
+        XLSX.writeFile(libro, `${nombreArchivoFinal}.xlsx`);
+        this.cerrarModalExportar();
       },
       formatTime(seconds) {
         const minutos = Math.floor(seconds / 60);
@@ -234,109 +252,108 @@
   
   <style>
   .container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  max-width: 800px;
-  margin: auto;
-}
-
-.button-group {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.button-group button {
-  padding: 10px;
-  font-size: 16px;
-  border: 1px solid #000;
-  cursor: pointer;
-}
-
-.global-timer {
-  margin-top: 20px;
-  text-align: center;
-  font-size: 18px;
-}
-
-.contadores {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-  width: 100%;
-  max-width: 800px;
-}
-
-.contador {
-  border: 1px solid #000;
-  padding: 10px;
-  text-align: center;
-}
-
-.increment-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.increment-buttons button {
-  padding: 5px;
-  font-size: 14px;
-  border: 1px solid #000;
-  cursor: pointer;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.modal {
-  background: white;
-  padding: 20px;
-  border: 1px solid #000;
-  text-align: center;
-  width: 90%;
-  max-width: 400px;
-}
-
-.modal-buttons {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 10px;
-}
-
-.error {
-  color: red;
-  font-size: 14px;
-  margin-top: 5px;
-}
-
-/* Responsividad */
-@media (max-width: 600px) {
-  .button-group {
+    display: flex;
     flex-direction: column;
-    width: 100%;
+    align-items: center;
+    padding: 20px;
+    max-width: 800px;
+    margin: auto;
   }
-
+  
+  .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  
   .button-group button {
-    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #000;
+    cursor: pointer;
   }
-
+  
+  .global-timer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 18px;
+  }
+  
   .contadores {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    width: 100%;
+    max-width: 800px;
   }
-}
-
+  
+  .contador {
+    border: 1px solid #000;
+    padding: 10px;
+    text-align: center;
+  }
+  
+  .increment-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .increment-buttons button {
+    padding: 5px;
+    font-size: 14px;
+    border: 1px solid #000;
+    cursor: pointer;
+  }
+  
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .modal {
+    background: white;
+    padding: 20px;
+    border: 1px solid #000;
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+  }
+  
+  .modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+  
+  .error {
+    color: red;
+    font-size: 14px;
+    margin-top: 5px;
+  }
+  
+  /* Responsividad */
+  @media (max-width: 600px) {
+    .button-group {
+      flex-direction: column;
+      width: 100%;
+    }
+  
+    .button-group button {
+      width: 100%;
+    }
+  
+    .contadores {
+      grid-template-columns: 1fr;
+    }
+  }
   </style>

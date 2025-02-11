@@ -192,8 +192,8 @@
         const contador = this.contadores.find(c => c.id === id);
         if (contador) {
           const ahora = new Date(); // Hora actual
-          const finIntervalo = new Date(ahora.getTime() + (900 - this.tiempoGlobalRestante) * 1000);
-          const inicioIntervalo = ahora;
+          const inicioIntervalo = new Date(ahora.getTime() - (900 - this.tiempoGlobalRestante) * 1000);
+          const finIntervalo = ahora;
   
           this.historial.push({
             "Intervalo": `${this.formatHour(inicioIntervalo)} - ${this.formatHour(finIntervalo)}`,

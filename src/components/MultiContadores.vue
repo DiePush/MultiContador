@@ -21,7 +21,7 @@
       </div>
   
       <div class="contadores">
-        <div v-for="contador in contadores" :key="contador.id" class="contador">
+        <div v-for="contador in contadores" :key="contador.id" class="contador" :style="{ backgroundColor: contador.color }">
           <p><strong>{{ contador.nombre }}</strong></p>
           <div class="increment-buttons">
             <button @click="incrementarCategoria(contador.id, 'livianos')">Livianos ({{ contador.livianos }})</button>
@@ -37,6 +37,11 @@
         <div class="modal">
           <h2>Nuevo Contador</h2>
           <input v-model="nuevoNombre" type="text" placeholder="Ingrese el nombre" />
+          <div class="color-picker">
+            <label v-for="color in coloresPastel" :key="color" :style="{ backgroundColor: color }">
+              <input type="radio" v-model="nuevoColor" :value="color" />
+            </label>
+          </div>
           <p v-if="errorMensaje" class="error">{{ errorMensaje }}</p>
           <div class="modal-buttons">
             <button @click="confirmarNombre">Aceptar</button>
@@ -72,11 +77,13 @@
         mostrarModal: false,
         mostrarModalExportar: false,
         nuevoNombre: "",
+        nuevoColor: "#FFB3BA", // Color por defecto
         nombreArchivo: "",
         errorMensaje: "",
         cuentaRegresivaActiva: false,
         temporizadorGlobal: null,
-        tiempoGlobalRestante: 900 // Tiempo global inicial (15 minutos)
+        tiempoGlobalRestante: 900, // Tiempo global inicial (15 minutos)
+        coloresPastel: ["#FFB3BA", "#FFDFBA", "#FFFFBA", "#BAFFC9", "#BAE1FF", "#D7BDE2", "#FAD7A0", "#F5B7B1", "#AED6F1", "#A3E4D7", "#F9E79F", "#D2B4DE"]
       };
     },
     methods: {
@@ -91,13 +98,15 @@
           return;
         }
   
-        this.agregarContador(this.nuevoNombre.trim());
+        this.agregarContador(this.nuevoNombre.trim(), this.nuevoColor);
         this.nuevoNombre = "";
+        this.nuevoColor = "#White"; // Restablecer color por defecto
         this.errorMensaje = "";
         this.mostrarModal = false;
       },
       cerrarModal() {
         this.nuevoNombre = "";
+        this.nuevoColor = "White"; // Restablecer color por defecto
         this.errorMensaje = "";
         this.mostrarModal = false;
       },
@@ -105,7 +114,7 @@
         this.nombreArchivo = "";
         this.mostrarModalExportar = false;
       },
-      agregarContador(nombre) {
+      agregarContador(nombre, color) {
         if (this.contadores.length < 12) {
           const horaActual = new Date();
           const inicio = this.formatHour(horaActual);
@@ -113,6 +122,7 @@
           const nuevoContador = {
             id: this.siguienteId++,
             nombre,
+            color,
             tiempoRestante: 900,
             livianos: 0,
             pesados: 0,
@@ -144,37 +154,29 @@
         }
       },
       iniciarCuentaRegresiva() {
-    if (this.temporizadorGlobal) clearInterval(this.temporizadorGlobal);
-
-    // Guardar el tiempo de inicio como marca de tiempo
-    const tiempoInicio = Date.now();
-    const tiempoGlobal = this.tiempoGlobalRestante * 1000; // Convertir a milisegundos
-
-    this.cuentaRegresivaActiva = true;
-    this.temporizadorGlobal = setInterval(() => {
-      const tiempoTranscurrido = Date.now() - tiempoInicio; // Tiempo transcurrido
-      const nuevoTiempoRestante = Math.max(tiempoGlobal - tiempoTranscurrido, 0); // Calcular tiempo restante
-
-      this.tiempoGlobalRestante = Math.floor(nuevoTiempoRestante / 1000); // Convertir de milisegundos a segundos
-
-      // Actualizar cada contador individual
-      this.contadores.forEach(contador => {
-        const tiempoTranscurridoContador = tiempoTranscurrido;
-        const nuevoTiempoRestanteContador = Math.max(contador.tiempoRestante * 1000 - tiempoTranscurridoContador, 0);
-        contador.tiempoRestante = Math.floor(nuevoTiempoRestanteContador / 1000);
-      });
-
-      if (this.tiempoGlobalRestante === 0) {
-        // Guardar en historial y reiniciar
-        this.contadores.forEach(contador => {
-          this.guardarEnHistorial(contador.id);
-        });
-        this.reiniciarCuentaRegresiva();
-      }
-
-      this.guardarDatos();
-    }, 1000);
-  },
+        if (this.temporizadorGlobal) clearInterval(this.temporizadorGlobal);
+  
+        this.cuentaRegresivaActiva = true;
+        this.temporizadorGlobal = setInterval(() => {
+          if (this.tiempoGlobalRestante > 0) {
+            this.tiempoGlobalRestante--;
+            this.contadores.forEach(contador => {
+              if (contador.tiempoRestante > 0) {
+                contador.tiempoRestante--;
+              }
+            });
+          } else {
+            // Guardar los datos en el historial antes de reiniciar los contadores
+            this.contadores.forEach(contador => {
+              this.guardarEnHistorial(contador.id);
+            });
+  
+            // Reiniciar el tiempo global y los contadores
+            this.reiniciarCuentaRegresiva();
+          }
+          this.guardarDatos();
+        }, 1000);
+      },
       reiniciarCuentaRegresiva() {
         this.tiempoGlobalRestante = 900;
         this.contadores.forEach(contador => {
@@ -200,8 +202,8 @@
         const contador = this.contadores.find(c => c.id === id);
         if (contador) {
           const ahora = new Date(); // Hora actual
-          const inicioIntervalo = new Date(ahora.getTime() - (900 - this.tiempoGlobalRestante) * 1000);
-          const finIntervalo = ahora;
+          const finIntervalo = new Date(ahora.getTime() + (900 - this.tiempoGlobalRestante) * 1000);
+          const inicioIntervalo = ahora;
   
           this.historial.push({
             "Intervalo": `${this.formatHour(inicioIntervalo)} - ${this.formatHour(finIntervalo)}`,
@@ -280,6 +282,7 @@
     padding: 10px;
     font-size: 16px;
     border: 1px solid #000;
+    border-radius: 8px;
     cursor: pointer;
   }
   
@@ -301,6 +304,7 @@
     border: 1px solid #000;
     padding: 10px;
     text-align: center;
+    border-radius: 8px;
   }
   
   .increment-buttons {
@@ -314,6 +318,7 @@
     font-size: 14px;
     border: 1px solid #000;
     cursor: pointer;
+    border-radius: 8px;
   }
   
   .modal-overlay {
@@ -335,12 +340,36 @@
     text-align: center;
     width: 90%;
     max-width: 400px;
+    border-radius: 8px;
   }
   
   .modal-buttons {
     display: flex;
     justify-content: space-between;
     margin-top: 10px;
+  }
+  
+  .color-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 10px;
+  }
+  
+  .color-picker label {
+    width: 30px;
+    height: 30px;
+    border-radius: 30%;
+    cursor: pointer;
+    border: 12px solid transparent;
+  }
+  
+  .color-picker input[type="radio"] {
+    display: none;
+  }
+  
+  .color-picker input[type="radio"]:checked + label {
+    border: 2px solid #000;
   }
   
   .error {

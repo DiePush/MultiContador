@@ -5,11 +5,11 @@
       <button @click="mostrarModal = true" :disabled="contadores.length >= 12">
         Agregar Contador
       </button>
+      <button @click="mostrarModalEliminar = true" :disabled="contadores.length === 0">
+        Eliminar Contador
+      </button>
       <button @click="mostrarModalExportar = true" :disabled="historial.length === 0">
         Exportar a Excel
-      </button>
-      <button @click="adelantarTiempo" :disabled="contadores.length === 0">
-        Adelantar Tiempo
       </button>
       <button @click="iniciarCuentaRegresiva" :disabled="contadores.length === 0 || cuentaRegresivaActiva">
         Iniciar Cuenta Regresiva
@@ -21,15 +21,25 @@
     </div>
 
     <div class="contadores">
-      <div v-for="contador in contadores" :key="contador.id" 
-      class="contador" :style="{ backgroundColor: contador.color }">
+      <div v-for="contador in contadores" :key="contador.id" class="contador" :style="{ backgroundColor: contador.color }">
         <p><strong>{{ contador.nombre }}</strong></p>
         <div class="increment-buttons">
-          <button @click="incrementarCategoria(contador.id, 'livianos')">Livianos ({{ contador.livianos }})</button>
-          <button @click="incrementarCategoria(contador.id, 'pesados')">Pesados ({{ contador.pesados }})</button>
-          <button @click="incrementarCategoria(contador.id, 'autobuses')">Autobuses ({{ contador.autobuses }})</button>
+          <div class="button-group-inline category-box">
+            <button @click="decrementarCategoria(contador.id, 'livianos')">-</button>
+            <span>Livianos ({{ contador.livianos }})</span>
+            <button @click="incrementarCategoria(contador.id, 'livianos')">+</button>
+          </div>
+          <div class="button-group-inline category-box">
+            <button @click="decrementarCategoria(contador.id, 'pesados')">-</button>
+            <span>Pesados ({{ contador.pesados }})</span>
+            <button @click="incrementarCategoria(contador.id, 'pesados')">+</button>
+          </div>
+          <div class="button-group-inline category-box">
+            <button @click="decrementarCategoria(contador.id, 'autobuses')">-</button>
+            <span>Autobuses ({{ contador.autobuses }})</span>
+            <button @click="incrementarCategoria(contador.id, 'autobuses')">+</button>
+          </div>
         </div>
-        <button @click="eliminarContador(contador.id)" class="eliminar">Eliminar</button>
       </div>
     </div>
 
@@ -39,14 +49,42 @@
         <h2>Nuevo Contador</h2>
         <input v-model="nuevoNombre" type="text" placeholder="Ingrese el nombre" />
         <div class="color-picker">
-            <label v-for="color in coloresPastel" :key="color" :style="{ backgroundColor: color }">
-              <input type="radio" v-model="nuevoColor" :value="color" />
-            </label>
-          </div>
+          <label v-for="color in coloresPastel" :key="color" :style="{ backgroundColor: color }">
+            <input type="radio" v-model="nuevoColor" :value="color" />
+          </label>
+        </div>
         <p v-if="errorMensaje" class="error">{{ errorMensaje }}</p>
         <div class="modal-buttons">
           <button @click="confirmarNombre">Aceptar</button>
           <button @click="cerrarModal">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para eliminar contadores -->
+    <div v-if="mostrarModalEliminar" class="modal-overlay">
+      <div class="modal">
+        <h2>Eliminar Contador</h2>
+        <div class="contador-lista">
+          <div v-for="contador in contadores" :key="contador.id" class="contador-item">
+            <span>{{ contador.nombre }}</span>
+            <button @click="confirmarEliminar(contador.id)" class="eliminar">Eliminar</button>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button @click="cerrarModalEliminar">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de confirmación de eliminación -->
+    <div v-if="mostrarModalConfirmacion" class="modal-overlay">
+      <div class="modal">
+        <h2>Confirmar Eliminación</h2>
+        <p>¿Estás seguro de que deseas eliminar el contador <strong>{{ contadorAEliminar.nombre }}</strong>?</p>
+        <div class="modal-buttons">
+          <button @click="eliminarContadorConfirmado">Sí, eliminar</button>
+          <button @click="cerrarModalConfirmacion">Cancelar</button>
         </div>
       </div>
     </div>
@@ -62,6 +100,45 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal para mostrar cómo utilizar -->
+    <div v-if="mostrarModalComoUtilizar" class="modal-overlay">
+  <div class="modal como-utilizar">
+    <h3>¿Cómo se utilizan los contadores?</h3>
+    <p><strong>Paso 1:</strong> Presiona el botón "Agregar Contador".</p>
+    <p><strong>Paso 2:</strong> Ponle un nombre y selecciona un color para el contador.</p>
+    <p><strong>Paso 3:</strong> Presiona el botón "Aceptar".</p>
+    <p><strong>Paso 4:</strong> Una vez que tengas la cantidad necesaria de contadores, presiona el botón <b>"Iniciar Cuenta Regresiva"</b>.</p>
+    <p><strong>Paso 5:</strong> Cuando necesites añadir un nuevo número, presiona el <b>+</b> y, si te equivocaste, presiona el <b>-</b> para restar.</p>
+
+    <h3>¿Cómo exportar los datos?</h3>
+    <p><strong>Paso 1:</strong> Una vez terminados los 15 minutos, los datos se guardarán automáticamente en un archivo de Excel. Si deseas, puedes presionar el botón <b>"Exportar a Excel"</b> para verificar que toda la información esté correcta.</p>
+    <p><strong>Paso 2:</strong> Ponle un nombre al archivo de Excel.</p>
+    <p><strong>Paso 3:</strong> Presiona el botón <b>"Aceptar"</b>.</p>
+    <p><strong>Paso 4:</strong> Revisa la carpeta de descargas.</p>
+
+    <h3>¿Cómo eliminar un contador?</h3>
+    <p><strong>Paso 1:</strong> Presiona el botón <b>"Eliminar contador"</b>.</p>
+    <p><strong>Paso 2:</strong> Selecciona cuál es el contador que deseas eliminar.</p>
+    <p><strong>Paso 3:</strong> Haz la doble verificación y el contador se eliminará.</p>
+
+    <h3>Información adicional:</h3>
+    <p>La información se guarda cuando el contador termina. Si tu contador aún tiene 30 segundos, significa que el total de los últimos 15 minutos aún no está reflejado en el archivo de Excel.</p>
+    <p>El temporizador seguirá funcionando aunque el usuario esté fuera de la web. Sin embargo, si llega a 0 y el usuario no ingresa a la web, quedará pausado hasta que el usuario vuelva a ingresar.</p>
+    <p>Se recomienda que, si van a receso de almuerzo, guarden los datos antes, ya que podrían ocurrir errores y la información podría perderse.</p>
+
+    <div class="modal-buttons">
+      <button @click="cerrarModalComoUtilizar">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+
+
+    <!-- Botón para mostrar cómo utilizar -->
+    <div class="como-utilizar">
+      <button @click="mostrarModalComoUtilizar = true">Cómo Utilizar</button>
+    </div>
   </div>
 </template>
 
@@ -76,7 +153,10 @@ export default {
       siguienteId: JSON.parse(localStorage.getItem('siguienteId')) || 1,
       intervalos: {},
       mostrarModal: false,
+      mostrarModalEliminar: false,
+      mostrarModalConfirmacion: false,
       mostrarModalExportar: false,
+      mostrarModalComoUtilizar: false,
       nuevoNombre: "",
       nuevoColor: "#FFB3BA", // Color por defecto
       nombreArchivo: "",
@@ -84,6 +164,7 @@ export default {
       cuentaRegresivaActiva: false,
       temporizadorGlobal: null,
       tiempoGlobalRestante: 900, // Tiempo global inicial (15 minutos)
+      contadorAEliminar: null,
       coloresPastel: ["#FFB3BA", "#FFDFBA", "#FFFFBA", "#BAFFC9", "#BAE1FF", "#D7BDE2", "#FAD7A0", "#F5B7B1", "#AED6F1", "#A3E4D7", "#F9E79F", "#D2B4DE"]
     };
   },
@@ -101,19 +182,29 @@ export default {
 
       this.agregarContador(this.nuevoNombre.trim(), this.nuevoColor);
       this.nuevoNombre = "";
-      this.nuevoColor = "#FFB3BA"; // Restablecer color por defecto
+      this.nuevoColor = "#FFFFFF"; // Restablecer color por defecto
       this.errorMensaje = "";
       this.mostrarModal = false;
     },
     cerrarModal() {
       this.nuevoNombre = "";
-      this.nuevoColor = "#FFB3BA"; // Restablecer color por defecto
+      this.nuevoColor = "#FFFFFF"; // Restablecer color por defecto
       this.errorMensaje = "";
       this.mostrarModal = false;
+    },
+    cerrarModalEliminar() {
+      this.mostrarModalEliminar = false;
+    },
+    cerrarModalConfirmacion() {
+      this.mostrarModalConfirmacion = false;
+      this.contadorAEliminar = null;
     },
     cerrarModalExportar() {
       this.nombreArchivo = "";
       this.mostrarModalExportar = false;
+    },
+    cerrarModalComoUtilizar() {
+      this.mostrarModalComoUtilizar = false;
     },
     agregarContador(nombre, color) {
       if (this.contadores.length < 12) {
@@ -141,17 +232,32 @@ export default {
         this.guardarDatos();
       }
     },
-    eliminarContador(id) {
+    decrementarCategoria(id, categoria) {
       const index = this.contadores.findIndex(c => c.id === id);
-      if (index !== -1) {
-        this.contadores.splice(index, 1);
+      if (index !== -1 && this.contadores[index][categoria] > 0) {
+        this.contadores[index][categoria]--;
         this.guardarDatos();
       }
+    },
+    confirmarEliminar(id) {
+      this.contadorAEliminar = this.contadores.find(c => c.id === id);
+      this.mostrarModalConfirmacion = true;
+    },
+    eliminarContadorConfirmado() {
+      if (this.contadorAEliminar) {
+        const index = this.contadores.findIndex(c => c.id === this.contadorAEliminar.id);
+        if (index !== -1) {
+          this.contadores.splice(index, 1);
+          this.guardarDatos();
+        }
 
-      // Si ya no hay contadores, detener el temporizador global y reiniciar el tiempo
-      if (this.contadores.length === 0) {
-        this.detenerTemporizadorGlobal();
-        this.tiempoGlobalRestante = 900; // 15 minutos
+        // Si ya no hay contadores, detener el temporizador global y reiniciar el tiempo
+        if (this.contadores.length === 0) {
+          this.detenerTemporizadorGlobal();
+          this.tiempoGlobalRestante = 900; // 15 minutos
+        }
+
+        this.cerrarModalConfirmacion();
       }
     },
     iniciarCuentaRegresiva() {
@@ -199,13 +305,6 @@ export default {
     detenerTemporizadorGlobal() {
       clearInterval(this.temporizadorGlobal);
       this.cuentaRegresivaActiva = false;
-    },
-    adelantarTiempo() {
-      this.tiempoGlobalRestante = 5;
-      this.contadores.forEach(contador => {
-        contador.tiempoRestante = 5;
-      });
-      this.guardarDatos();
     },
     guardarEnHistorial(id) {
       const contador = this.contadores.find(c => c.id === id);
@@ -293,6 +392,13 @@ export default {
   border: 1px solid #000;
   border-radius: 8px;
   cursor: pointer;
+  background-color: #f0f0f0;
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.button-group button:hover {
+  background-color: #e0e0e0;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .global-timer {
@@ -310,24 +416,56 @@ export default {
 }
 
 .contador {
-  border: 1px solid #000;
+  border: 2px solid #000;
   padding: 10px;
   text-align: center;
   border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s;
+}
+
+.contador:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
 .increment-buttons {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 10px;
 }
 
-.increment-buttons button {
-  padding: 5px;
-  font-size: 14px;
+.button-group-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.button-group-inline button {
+  padding: 8px;
+  font-size: 12px;
   border: 1px solid #000;
   cursor: pointer;
   border-radius: 8px;
+  background-color: #f0f0f0;
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.button-group-inline button:hover {
+  background-color: #e0e0e0;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.category-box {
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: #fafafa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s;
+}
+
+.category-box:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .modal-overlay {
@@ -342,6 +480,18 @@ export default {
   align-items: center;
 }
 
+.modal.como-utilizar {
+  background: white;
+  padding: 20px;
+  border: 1px solid #000;
+  text-align: left;
+  font-size: 12px;
+  width: 90%;
+  max-width: 400px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+} 
+
 .modal {
   background: white;
   padding: 20px;
@@ -350,6 +500,7 @@ export default {
   width: 90%;
   max-width: 400px;
   border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .modal-buttons {
@@ -358,10 +509,33 @@ export default {
   margin-top: 10px;
 }
 
+.contador-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.contador-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #fafafa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s;
+}
+
+.contador-item:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
 .color-picker {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
+  gap: 5px;
   margin-top: 10px;
 }
 
@@ -370,7 +544,8 @@ export default {
   height: 30px;
   border-radius: 30%;
   cursor: pointer;
-  border: 12px solid transparent;
+  border: 2px solid transparent;
+  transition: border 0.3s;
 }
 
 .color-picker input[type="radio"] {
@@ -400,6 +575,11 @@ export default {
 
   .contadores {
     grid-template-columns: 1fr;
+  }
+
+  .modal-buttons {
+    justify-content: center;
+    gap: 10px;
   }
 }
 </style>

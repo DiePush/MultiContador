@@ -564,6 +564,18 @@ export default {
 
 /* Responsividad */
 @media (max-width: 600px) {
+  .modal.como-utilizar {
+  background: white;
+  padding: 20px;
+  border: 1px solid #000;
+  text-align: left;
+  font-size: 9px;
+  width: 90%;
+  max-width: 300px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+
+} 
   .button-group {
     flex-direction: column;
     width: 100%;

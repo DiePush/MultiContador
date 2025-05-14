@@ -1,16 +1,14 @@
 <template>
   <img alt="Vue logo" src="./assets/logo.png" class="logo">
-  <MultiContadores msg="Welcome to Your Vue.js App" />
+  <router-view />
 </template>
 
 <script>
-import MultiContadores from './components/MultiContadores.vue';
-
+ /* import MultiContadores from './components/MultiContadores.vue'; */
+ 
 export default {
   name: 'App',
-  components: {
-    MultiContadores,
-  },
+
 };
 </script>
 

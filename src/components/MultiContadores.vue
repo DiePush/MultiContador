@@ -14,6 +14,8 @@
       <button @click="iniciarCuentaRegresiva" :disabled="contadores.length === 0 || cuentaRegresivaActiva">
         Iniciar Cuenta Regresiva
       </button>
+      <button @click="cerrarSesion">Cerrar sesión</button>
+
     </div>
 
     <div class="global-timer">
@@ -360,12 +362,20 @@ export default {
       localStorage.setItem('contadores', JSON.stringify(this.contadores));
       localStorage.setItem('siguienteId', JSON.stringify(this.siguienteId));
       localStorage.setItem('historial', JSON.stringify(this.historial));
-    }
+    },
+    cerrarSesion() {
+    sessionStorage.removeItem('autenticado');
+    this.$router.push('/');
+  }
   },
+  
   mounted() {
     // No iniciar temporizadores individuales
+  
   }
+  
 };
+
 </script>
 
 <style>

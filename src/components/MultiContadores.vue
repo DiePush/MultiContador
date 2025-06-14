@@ -1,3 +1,4 @@
+
 <template>
   <div class="container">
     <h1>Multicontadores</h1>
@@ -146,6 +147,11 @@
 
 <script>
 import * as XLSX from 'xlsx';
+import { uploadExcelToDrive } from '@/services/GoogleDriveService';
+//import { getCurrentUser } from '@/services/GoogleAuth';
+//import { gapi } from 'gapi-script';
+import { initGoogleAPI } from '@/services/GoogleInit.js';
+
 
 export default {
   data() {
@@ -288,12 +294,19 @@ export default {
       this.contadores.forEach(contador => {
         this.guardarEnHistorial(contador.id);
       });
+     //  this.mostrarModalExportarAutomaticamente();
       this.reiniciarCuentaRegresiva();
     }
 
     this.guardarDatos();
   }, 1000);
 },
+/*
+mostrarModalExportarAutomaticamente() {
+  this.mostrarModalExportar = true;
+  this.detenerTemporizadorGlobal();
+},*/
+
     reiniciarCuentaRegresiva() {
       this.tiempoGlobalRestante = 900;
       this.contadores.forEach(contador => {
@@ -335,21 +348,46 @@ export default {
         contador.tiempoRestante = 900; // Reiniciar tiempo a 15 minutos
       }
     },
-    exportarExcel() {
-      if (this.historial.length === 0) return;
 
-      const libro = XLSX.utils.book_new();
-      this.contadores.forEach(contador => {
-        const data = this.historial.filter(entry => entry["Nombre del contador"] === contador.nombre);
-        const hoja = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(libro, hoja, contador.nombre);
-      });
+async exportarExcel() {
+  if (this.historial.length === 0) return;
 
-      const fecha = new Date().toISOString().replace(/[-T:]/g, '').split('.')[0];
-      const nombreArchivoFinal = this.nombreArchivo.trim() ? this.nombreArchivo.trim() : `historial_contadores_${fecha}`;
-      XLSX.writeFile(libro, `${nombreArchivoFinal}.xlsx`);
-      this.cerrarModalExportar();
-    },
+  try {
+    const auth2 = await initGoogleAPI(); // 👈 INICIALIZAR GAPI
+    await auth2.signIn({
+     scope: 'https://www.googleapis.com/auth/drive.file'
+    });
+    const googleUser = auth2.currentUser.get();
+
+    if (!googleUser.isSignedIn()) throw new Error('Usuario no está autenticado');
+
+    const accessToken = googleUser.getAuthResponse().access_token;
+
+    const libro = XLSX.utils.book_new();
+    this.contadores.forEach(contador => {
+      const data = this.historial.filter(entry => entry["Nombre del contador"] === contador.nombre);
+      const hoja = XLSX.utils.json_to_sheet(data);
+      XLSX.utils.book_append_sheet(libro, hoja, contador.nombre);
+    });
+
+    const fecha = new Date().toISOString().replace(/[-T:]/g, '').split('.')[0];
+    const nombreArchivoFinal = this.nombreArchivo.trim() ? this.nombreArchivo.trim() : `historial_contadores_${fecha}`;
+    const nombreConExtension = `${nombreArchivoFinal}.xlsx`;
+
+    const workbookBinary = XLSX.write(libro, { bookType: 'xlsx', type: 'array' });
+    const file = new Blob([workbookBinary], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    await uploadExcelToDrive(file, accessToken);
+    XLSX.writeFile(libro, nombreConExtension);
+
+    this.cerrarModalExportar();
+  } catch (error) {
+    console.error('Error al exportar y subir:', error);
+    alert(error.message);
+  }
+},
+
+
     formatTime(seconds) {
       const minutos = Math.floor(seconds / 60);
       const segundos = seconds % 60;
